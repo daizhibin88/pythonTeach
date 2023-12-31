@@ -1,16 +1,21 @@
+import math
 import random
 import functools
 from pygame import mixer
 import pygame
+from typing_extensions import Self
 class MovableObject:
+
     def __init__(self, screen: pygame.Surface, imageFile: str):
         self.screen = screen
         self.spaceObject = pygame.image.load(imageFile)
         self.maxX = self.screen.get_width() - self.spaceObject.get_width()
         self.maxY = self.screen.get_height() - self.spaceObject.get_height()
+        self.positionX= 0
+        self.positionY= 0
 
-    def move(self, x, y):
-        self.screen.blit(self.spaceObject, (x,y))
+    def move(self):
+        self.screen.blit(self.spaceObject, (self.positionX,self.positionY))
 
     def setChangeX(self , x):
         self.changeX = x
@@ -20,6 +25,8 @@ class MovableObject:
     def stop(self):
         self.setChangeX(0)
         self.setChangeY(0)
+    def distance(self , another: Self)->float:
+        return math.sqrt( (self.positionX - another.positionX) **2  + (self.positionY - another.positionY)**2 )
     #def move(self , rect: pygame.rect.Rect):
     #    self.screen.blit(self.spaceObject , rect)
 
@@ -44,7 +51,7 @@ class Player(MovableObject):
             self.positionY =0
         elif self.positionY>= self.maxY:
             self.positionY=self.maxY
-        self.move(self.positionX , self.positionY)
+        self.move()
 
 class Enemy(MovableObject):
     def __init__(self, screen:pygame.Surface , imageFile: str):
@@ -64,7 +71,7 @@ class Enemy(MovableObject):
             self.positionY += self.changeY
         # if self.positionY>= self.maxY:
         #     self.positionY = 0
-        self.move(self.positionX , self.positionY)
+        self.move()
 
 class EnemyGroup:
     def __init__(self , screen:pygame.Surface , imageFile: str ,count:int):
@@ -83,7 +90,11 @@ class EnemyGroup:
     def stop(self):
         map( lambda enemy: enemy.stop(), self.enemies)
 
+    def __iter__(self):
+        return  iter( self.enemies )
+
 class Bullet(MovableObject):
+    epsilon = 27
     def __init__(self, screen:pygame.Surface , imageFile: str):
         super().__init__(screen, imageFile)
         self.changeX = 0
@@ -93,22 +104,34 @@ class Bullet(MovableObject):
         self.reset()
 
     def reset(self):
-        self.bulletY= self.maxY+ self.spaceObject.get_height()
+        self.positionY= self.maxY+ self.spaceObject.get_height()
         self.bullet_state = "ready"
 
     def fire(self , x , y):
         if self.bullet_state == "ready":
             self.bullet_state = "fire"
-            self.postitionX = x +16
-            self.postitionY = y +10
-            self.move(self.postitionX , self.postitionY)
+            self.positionX = x +16
+            self.positionY = y +10
+            self.move()
     def changePosition(self):
         if self.bullet_state == "fire":
-            self.postitionY += self.changeY
-            if self.postitionY<=0:
+            self.positionY += self.changeY
+            if self.positionY<=0:
                 self.reset()
             else:
-                self.move(self.postitionX , self.postitionY)
+                self.move()
+
+    def CollisionEnemy(self , enemies:EnemyGroup):
+        if self.bullet_state =="ready":
+            return ()
+        collisionEnemies =[enemy for enemy in enemies if self.distance(enemy)< self.epsilon]
+        return collisionEnemies
+
+    def explore(self):
+        explosionSound = mixer.Sound("resource/sounds/explosion.wav")
+        explosionSound.play()
+        self.reset()
+
 
 class Game:
     def __init__(self, width , height):
@@ -131,21 +154,37 @@ class Game:
         self.bullet = Bullet(self.screen, 'resource/bullet.png')
         self.running = True
         self.over = False
+        self.score = 0
+        self.font = pygame.font.Font('freesansbold.ttf', 32)
     def run(self):
         while self.running:
             self.screen.fill((0,0,0))
             self.screen.blit(self.background,(0,0))
             for event in pygame.event.get():
                 self.handleEvent(event)
+            self.handleCollision()
             self.updateScreen()
     def updateScreen(self):
         self.enemies.changePosition()
         self.player.changePosition()
         self.bullet.changePosition()
+        self.show_score()
         pygame.display.update()
+
+    def handleCollision(self):
+        collisionEnemies:list[Enemy] =self.bullet.CollisionEnemy(self.enemies)
+        if len(collisionEnemies) >0:
+            self.bullet.explore()
+            for enemy in collisionEnemies:
+                enemy.reset()
+            self.score +=1
 
     def isGameOver(self):
         return self.enemies.getTheDeepPosition() >= self.screenheight
+
+    def show_score(self):
+        score = self.font.render("Score : " + str(self.score), True, (255, 255, 255))
+        self.screen.blit(score, (10, 10))
 
     def gameOver(self):
         self.enemies.stop()
