@@ -85,7 +85,8 @@ class EnemyGroup:
 
     def getTheDeepPosition(self):
         ypositions =[ enemy.positionY for enemy in self.enemies]
-        return  functools.reduce(max , ypositions)
+        deepPos = functools.reduce(max , ypositions)
+        return deepPos
 
     def stop(self):
         map( lambda enemy: enemy.stop(), self.enemies)
@@ -156,12 +157,16 @@ class Game:
         self.over = False
         self.score = 0
         self.font = pygame.font.Font('freesansbold.ttf', 32)
+        self.over_text = pygame.font.Font('freesansbold.ttf', 64).render("GAME OVER", True, (255, 255, 255))
+
     def run(self):
         while self.running:
             self.screen.fill((0,0,0))
             self.screen.blit(self.background,(0,0))
             for event in pygame.event.get():
                 self.handleEvent(event)
+            if self.isGameOver():
+                self.over =True
             self.handleCollision()
             self.updateScreen()
     def updateScreen(self):
@@ -169,6 +174,7 @@ class Game:
         self.player.changePosition()
         self.bullet.changePosition()
         self.show_score()
+        self.showGameOver()
         pygame.display.update()
 
     def handleCollision(self):
@@ -186,6 +192,12 @@ class Game:
         score = self.font.render("Score : " + str(self.score), True, (255, 255, 255))
         self.screen.blit(score, (10, 10))
 
+    def showGameOver(self):
+        if self.over :
+            x =(self.screen.get_width()- self.over_text.get_width())/2
+            y =(self.screen.get_height() - self.over_text.get_height())/2
+            self.screen.blit(self.over_text, (x, y))
+
     def gameOver(self):
         self.enemies.stop()
         self.player.stop()
@@ -196,10 +208,7 @@ class Game:
     def handleEvent(self,event):
         if event.type == pygame.QUIT:
             self.running = False
-        if self.over:
-            return
-        elif self.isGameOver():
-            self.gameOver()
+        if self.isGameOver() :
             return
         # if keystroke is pressed check whether its right or left
         if event.type == pygame.KEYDOWN:
