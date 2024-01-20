@@ -40,6 +40,8 @@ class Player(MovableObject):
 
     def getPositionX(self):
         return self.positionX
+    def getPositionY(self):
+        return self.positionY
     def changePosition(self):
         self.positionX +=self.changeX
         self.positionY +=self.changeY
@@ -103,6 +105,7 @@ class Bullet(MovableObject):
         # Ready - You can't see the bullet on the screen
         # Fire - The bullet is currently moving
         self.reset()
+        self.explosionSound = mixer.Sound("resource/sounds/explosion.wav")
 
     def reset(self):
         self.positionY= self.maxY+ self.spaceObject.get_height()
@@ -129,8 +132,7 @@ class Bullet(MovableObject):
         return collisionEnemies
 
     def explore(self):
-        explosionSound = mixer.Sound("resource/sounds/explosion.wav")
-        explosionSound.play()
+        self.explosionSound.play()
         self.reset()
 
 
@@ -208,7 +210,7 @@ class Game:
     def handleEvent(self,event):
         if event.type == pygame.QUIT:
             self.running = False
-        if self.isGameOver() :
+        if self.over :
             return
         # if keystroke is pressed check whether its right or left
         if event.type == pygame.KEYDOWN:
@@ -222,7 +224,8 @@ class Game:
                 self.player.setChangeY(5)
             if event.key == pygame.K_SPACE:
                 positionX = self.player.getPositionX()
-                self.bullet.fire(positionX, 480)
+                positionY =self.player.getPositionY()
+                self.bullet.fire(positionX, positionY)
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
                 self.player.setChangeX(0)
